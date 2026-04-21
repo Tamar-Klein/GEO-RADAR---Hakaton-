@@ -1,0 +1,43 @@
+# === Secrets & keys ===
+.env
+.env.local
+.env.*.local
+!.env.example
+*.key
+secrets.json
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# === Virtual envs ===
+venv/
+env/
+.venv/
+.env/
+
+# === Streamlit ===
+.streamlit/secrets.toml
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+.windsurf/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Backups / large data ===
+*.bak
+*.tmp
+*.log
