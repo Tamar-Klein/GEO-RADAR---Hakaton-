@@ -190,44 +190,49 @@ if has_data:
             dom = domain_of(s['url'])
             if not dom: continue
             
-            has_us = any(al.lower() in (s.get('title','')+s.get('content','')+s.get('url','')).lower()
-                         for al in [company] + COMPANY_ALIASES.get(company, []))
-            
             if dom not in dom_stats:
-                dom_stats[dom] = {"count": 0, "by": set(), "has_us": False, "url": s['url']}
+                # הוספת unique_models כדי לספור מודלים שונים
+                dom_stats[dom] = {"count": 0, "unique_models": set(), "has_us": False, "url": s['url']}
             
             dom_stats[dom]["count"] += 1
-            dom_stats[dom]["by"].update(s.get("by", []))
+            # הוספת המודל שצוטט (by הוא רשימה של מודלים)
+            dom_stats[dom]["unique_models"].update(s.get("by", []))
+            
+            has_us = any(al.lower() in (s.get('title','')+s.get('content','')+s.get('url','')).lower()
+                         for al in [company] + COMPANY_ALIASES.get(company, []))
             if has_us: dom_stats[dom]["has_us"] = True
 
-    sorted_doms = sorted(dom_stats.items(), key=lambda x: (-x[1]["count"], -int(x[1]["has_us"])))[:10]
+    # מיון לפי כמות מודלים ייחודיים (הכי חשוב) ואז לפי כמות ציטוטים
+    sorted_doms = sorted(dom_stats.items(), key=lambda x: (-len(x[1]["unique_models"]), -x[1]["count"]))[:10]
     total_questions = len(st.session_state.audit_results)
 
     for dom, d in sorted_doms:
         initial = dom[0].upper() if dom else '?'
-        by_set = d["by"]
+        by_set = d["unique_models"]
+        n_models = len(by_set)
         
-        if len(by_set) >= 3:
+        # בניית ה-HTML של המודלים
+        if n_models >= 3:
             by_html = '<span class="feed-by feed-by-all">🔥 כל השלושה</span>'
-        elif len(by_set) == 2:
+        elif n_models == 2:
             icons = []
             if 'gemini' in by_set: icons.append('✨')
             if 'openai' in by_set: icons.append('🧠')
             if 'claude' in by_set: icons.append('🎭')
             by_html = f'<span class="feed-by feed-by-both">{" ".join(icons)} שניים</span>'
-        elif 'gemini' in by_set:
-            by_html = '<span class="feed-by feed-by-gem">✨ Gemini</span>'
-        elif 'openai' in by_set:
-            by_html = '<span class="feed-by feed-by-chat">🧠 ChatGPT</span>'
-        elif 'claude' in by_set:
-            by_html = '<span class="feed-by feed-by-claude">🎭 Claude</span>'
+        elif n_models == 1:
+            m = list(by_set)[0]
+            icon = '✨' if m=='gemini' else ('🧠' if m=='openai' else '🎭')
+            name = 'ChatGPT' if m=='openai' else m.capitalize()
+            by_html = f'<span class="feed-by feed-by-{m}">{icon} {name}</span>'
         else:
             by_html = '<span class="feed-by">—</span>'
 
-        freq_pct = int(100 * d["count"] / max(total_questions, 1))
+        # --- התיקון הקריטי: חישוב הפס לפי מודלים (מתוך 3) ---
+        freq_pct = int(100 * n_models / 3) 
         freq_html = (f'<div class="feed-freq"><div class="feed-freq-bar">'
                      f'<div class="feed-freq-fill" style="width:{freq_pct}%"></div></div>'
-                     f'<span class="feed-freq-txt">{d["count"]}/{total_questions}</span></div>')
+                     f'<span class="feed-freq-txt">{n_models}/3 מודלים</span></div>')
 
         if d["has_us"]:
             mention_html = '<span class="pill-green">✓ מזכיר</span>'
@@ -235,7 +240,8 @@ if has_data:
             action_cls = "feed-action-ok"
         else:
             mention_html = '<span class="pill-red">✗ לא מזכיר</span>'
-            if d["count"] >= 2:
+            # עדיפות גבוהה אם מופיע ב-2 מודלים ומעלה ולא מזכיר אותנו
+            if n_models >= 2:
                 action = "🎯 עדיפות גבוהה — פרסמו כאן"
                 action_cls = "feed-action-hot"
             else:

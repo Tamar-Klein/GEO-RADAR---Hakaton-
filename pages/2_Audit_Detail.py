@@ -174,110 +174,53 @@ for idx, (res, gap) in enumerate(zip(results, analyses), 1):
         src_html += '</div>'
         st.markdown(src_html, unsafe_allow_html=True)
 
-    # --- Thinking Panels: Claude ---
+    # --- Thinking Panels ---
     claude_queries = res.get('claude_search_queries', []) or []
     claude_think = res.get('claude_thinking', '')
     if claude_queries:
         cq_html = "".join(f'<span class="qx-think-query">🔍 {q}</span>' for q in claude_queries)
-        st.markdown(
-            f'<details class="qx-think" open><summary>🔍 שאילתות חיפוש ש-Claude בנה ({len(claude_queries)})</summary>'
-            f'<div class="qx-think-body"><div class="qx-think-queries">{cq_html}</div></div></details>',
-            unsafe_allow_html=True
-        )
+        st.markdown(f'<details class="qx-think" open><summary>🔍 שאילתות חיפוש ש-Claude בנה ({len(claude_queries)})</summary><div class="qx-think-body"><div class="qx-think-queries">{cq_html}</div></div></details>', unsafe_allow_html=True)
     if claude_think:
-        st.markdown(
-            f'<details class="qx-think"><summary>🎭 תהליך החשיבה של Claude</summary>'
-            f'<div class="qx-think-body">{format_ai_text(claude_think)}</div></details>',
-            unsafe_allow_html=True
-        )
+        st.markdown(f'<details class="qx-think"><summary>🎭 תהליך החשיבה של Claude</summary><div class="qx-think-body">{format_ai_text(claude_think)}</div></details>', unsafe_allow_html=True)
 
-    # --- Thinking Panels: GPT & Gemini ---
-    gem_think = res.get('gemini_thinking', '')
-    chat_think = res.get('openai_thinking', '')
     chat_queries = res.get('openai_search_queries', []) or []
-
+    chat_think = res.get('openai_thinking', '')
     if chat_queries:
         queries_html = "".join(f'<span class="qx-think-query">🔍 {q}</span>' for q in chat_queries)
-        st.markdown(
-            f'<details class="qx-think" open><summary>🔍 שאילתות חיפוש ש-ChatGPT בנה ({len(chat_queries)})</summary>'
-            f'<div class="qx-think-body"><div class="qx-think-queries">{queries_html}</div></div></details>',
-            unsafe_allow_html=True
-        )
-
+        st.markdown(f'<details class="qx-think" open><summary>🔍 שאילתות חיפוש ש-ChatGPT בנה ({len(chat_queries)})</summary><div class="qx-think-body"><div class="qx-think-queries">{queries_html}</div></div></details>', unsafe_allow_html=True)
     if chat_think and 'fallback' not in chat_think:
-        st.markdown(
-            f'<details class="qx-think"><summary>🧠 תהליך החשיבה של ChatGPT (o4-mini)</summary>'
-            f'<div class="qx-think-body">{format_ai_text(chat_think)}</div></details>',
-            unsafe_allow_html=True
-        )
+        st.markdown(f'<details class="qx-think"><summary>🧠 תהליך החשיבה של ChatGPT (o4-mini)</summary><div class="qx-think-body">{format_ai_text(chat_think)}</div></details>', unsafe_allow_html=True)
 
+    gem_think = res.get('gemini_thinking', '')
     if gem_think:
-        st.markdown(
-            f'<details class="qx-think"><summary>✨ תהליך החשיבה של Gemini</summary>'
-            f'<div class="qx-think-body">{format_ai_text(gem_think)}</div></details>',
-            unsafe_allow_html=True
-        )
+        st.markdown(f'<details class="qx-think"><summary>✨ תהליך החשיבה של Gemini</summary><div class="qx-think-body">{format_ai_text(gem_think)}</div></details>', unsafe_allow_html=True)
 
     # --- Content Brief ---
     brief = res.get('content_brief')
-    if brief and not brief.get('error'):
-        headline = brief.get('headline', '') or ''
-        meta_desc = brief.get('meta_description', '') or ''
-        outline = brief.get('outline', []) or []
-        keywords = brief.get('target_keywords', []) or []
-        length = brief.get('recommended_length', '—')
-        platform = brief.get('recommended_platform', '') or '—'
-        platform_reason = brief.get('platform_reason', '') or ''
-        key_args = brief.get('key_arguments', []) or []
-        unique_angle = brief.get('unique_angle', '') or ''
-        cta = brief.get('cta', '') or ''
-        expected_impact = brief.get('expected_impact', '') or ''
-
-        outline_html = "".join(f"<li>{h}</li>" for h in outline)
-        kw_html = "".join(f'<span class="qx-brief-kw-chip">#{k}</span>' for k in keywords)
-        args_html = "".join(f"<li>{a}</li>" for a in key_args)
-
+    if brief and isinstance(brief, dict) and not brief.get('error'):
+        headline = brief.get('headline', '')
+        meta_desc = brief.get('meta_description', '')
+        outline_html = "".join(f"<li>{h}</li>" for h in brief.get('outline', []))
+        kw_html = "".join(f'<span class="qx-brief-kw-chip">#{k}</span>' for k in brief.get('target_keywords', []))
+        args_html = "".join(f"<li>{a}</li>" for a in brief.get('key_arguments', []))
+        
         brief_html = f'''
         <div class="qx-brief">
-            <div class="qx-brief-head">
-                📝 Content Brief · מוכן לצוות תוכן
-                <span class="qx-brief-head-badge">🎭 מיוצר על ידי Claude</span>
-            </div>
+            <div class="qx-brief-head">📝 Content Brief · מוכן לצוות תוכן <span class="qx-brief-head-badge">🎭 מיוצר על ידי Claude</span></div>
             <div class="qx-brief-body">
                 <div class="qx-brief-h1">{headline}</div>
                 <div class="qx-brief-meta">📝 <b>Meta:</b> {meta_desc}</div>
                 <div class="qx-brief-grid">
-                    <div class="qx-brief-box">
-                        <div class="qx-brief-box-title">📋 מבנה המאמר (Outline)</div>
-                        <ol class="qx-brief-outline">{outline_html}</ol>
-                    </div>
-                    <div class="qx-brief-box">
-                        <div class="qx-brief-box-title">🎯 מילות מפתח</div>
-                        <div class="qx-brief-kw">{kw_html}</div>
-                        <div class="qx-brief-stat-row" style="margin-top:14px">
-                            <span class="qx-brief-stat-key">📏 אורך:</span>
-                            <span class="qx-brief-stat-val">{length} מילים</span>
-                        </div>
-                        <div class="qx-brief-platform">
-                            <div style="font-size:11px;opacity:.9;margin-bottom:4px">📍 לפרסם ב:</div>
-                            <div class="qx-brief-platform-dom">{platform}</div>
-                            <div class="qx-brief-platform-reason">{platform_reason}</div>
-                        </div>
+                    <div class="qx-brief-box"><div class="qx-brief-box-title">📋 מבנה המאמר (Outline)</div><ol class="qx-brief-outline">{outline_html}</ol></div>
+                    <div class="qx-brief-box"><div class="qx-brief-box-title">🎯 מילות מפתח</div><div class="qx-brief-kw">{kw_html}</div>
+                        <div class="qx-brief-stat-row" style="margin-top:14px"><span class="qx-brief-stat-key">📏 אורך:</span> <span class="qx-brief-stat-val">{brief.get('recommended_length', '—')} מילים</span></div>
+                        <div class="qx-brief-platform"><div style="font-size:11px;opacity:.9;margin-bottom:4px">📍 לפרסם ב:</div><div class="qx-brief-platform-dom">{brief.get('recommended_platform', '—')}</div><div class="qx-brief-platform-reason">{brief.get('platform_reason', '')}</div></div>
                     </div>
                 </div>
-                <div class="qx-brief-box">
-                    <div class="qx-brief-box-title">💪 טיעוני מפתח לשילוב</div>
-                    <ul class="qx-brief-args">{args_html}</ul>
-                </div>
-                <div class="qx-brief-angle">
-                    <span class="qx-brief-angle-label">✨ זווית ייחודית</span>
-                    {unique_angle}
-                </div>
-                <div class="qx-brief-impact">
-                    <div class="qx-brief-impact-icon">🚀</div>
-                    <div><b>למה זה צפוי לעבוד:</b> {expected_impact}</div>
-                </div>
-                <div class="qx-brief-cta">📣 {cta}</div>
+                <div class="qx-brief-box"><div class="qx-brief-box-title">💪 טיעוני מפתח לשילוב</div><ul class="qx-brief-args">{args_html}</ul></div>
+                <div class="qx-brief-angle"><span class="qx-brief-angle-label">✨ זווית ייחודית</span> {brief.get('unique_angle', '')}</div>
+                <div class="qx-brief-impact"><div class="qx-brief-impact-icon">🚀</div><div><b>למה זה צפוי לעבוד:</b> {brief.get('expected_impact', '')}</div></div>
+                <div class="qx-brief-cta">📣 {brief.get('cta', '')}</div>
             </div>
         </div>
         '''
@@ -287,74 +230,48 @@ for idx, (res, gap) in enumerate(zip(results, analyses), 1):
     judgments = res.get('judgments') or {}
     valid_judgments = [(k, v) for k, v in judgments.items() if v and not v.get('error')]
     if valid_judgments:
-        model_display = {
-            "openai": ("🧠", "ChatGPT"),
-            "gemini": ("✨", "Gemini"),
-            "claude": ("🎭", "Claude (עצמי)"),
-        }
+        model_display = {"openai": ("🧠", "ChatGPT"), "gemini": ("✨", "Gemini"), "claude": ("🎭", "Claude (עצמי)")}
         judge_cards_html = ""
         for model_key, j in valid_judgments:
             icon, name = model_display.get(model_key, ("🤖", model_key))
             score = int(j.get('score', 0) or 0)
             score_cls = "qx-judge-score-hi" if score >= 8 else ("qx-judge-score-mid" if score >= 5 else "qx-judge-score-lo")
-            bias = j.get('bias_detected')
-            idi_src = j.get('idi_in_sources')
-            idi_ans = j.get('idi_in_answer')
-            dom_brand = j.get('dominant_brand') or '—'
-            verdict = j.get('verdict', '') or ''
-            fix = j.get('fix_recommendation', '') or ''
-
             flags = []
-            if bias: flags.append('<span class="qx-judge-flag qx-judge-flag-bias">⚠️ הטיה</span>')
+            if j.get('bias_detected'): flags.append('<span class="qx-judge-flag qx-judge-flag-bias">⚠️ הטיה</span>')
             else: flags.append('<span class="qx-judge-flag qx-judge-flag-fair">✓ הוגן</span>')
+            if j.get('idi_in_sources'): flags.append('<span class="qx-judge-flag qx-judge-flag-src">ביטוח ישיר במקורות</span>')
             
-            if idi_src is True: flags.append('<span class="qx-judge-flag qx-judge-flag-src">ביטוח ישיר במקורות</span>')
-            
-            if idi_ans is True: flags.append('<span class="qx-judge-flag qx-judge-flag-fair">מוזכרת בתשובה</span>')
-            elif idi_src is True and idi_ans is False: flags.append('<span class="qx-judge-flag qx-judge-flag-ans">הושמטה מהתשובה!</span>')
-            
-            flags_html = "".join(flags)
-
+            # בניית הכרטיסייה הבודדת
             judge_cards_html += f'''
             <div class="qx-judge-card">
-                <div class="qx-judge-card-head">
-                    <div class="qx-judge-model">{icon} {name}</div>
-                    <div class="qx-judge-score {score_cls}">{score}/10</div>
-                </div>
-                <div class="qx-judge-flags">{flags_html}</div>
-                <div class="qx-judge-dom">מותג דומיננטי: <b>{dom_brand}</b></div>
-                <div class="qx-judge-verdict">{verdict}</div>
-                <div class="qx-judge-fix"><b>💡 המלצה:</b> {fix}</div>
+                <div class="qx-judge-card-head"><div class="qx-judge-model">{icon} {name}</div><div class="qx-judge-score {score_cls}">{score}/10</div></div>
+                <div class="qx-judge-flags">{"".join(flags)}</div>
+                <div class="qx-judge-dom">מותג דומיננטי: <b>{j.get('dominant_brand') or '—'}</b></div>
+                <div class="qx-judge-verdict">{j.get('verdict', '')}</div>
+                <div class="qx-judge-fix"><b>💡 המלצה:</b> {j.get('fix_recommendation', '')}</div>
             </div>
             '''
-
-        judge_html = f'''
+        
+        # הדפסה ישירה של כל אזור השיפוט
+        st.markdown(f'''
         <div class="qx-judge-section">
-            <div class="qx-judge-title">
-                🧑‍⚖️ שיפוט צולב · ביקורת אובייקטיבית של התשובות
-                <span class="qx-judge-badge">🎭 Claude = Judge</span>
-            </div>
+            <div class="qx-judge-title">🧑‍⚖️ שיפוט צולב · ביקורת אובייקטיבית <span class="qx-judge-badge">🎭 Claude = Judge</span></div>
             <div class="qx-judge-grid">{judge_cards_html}</div>
         </div>
-        '''
-        st.markdown(judge_html, unsafe_allow_html=True)
+        ''', unsafe_allow_html=True)
 
-    # --- Recommendation ---
+    # --- Recommendation & Closing Card ---
     rec_type, rec_text = build_recommendation(gap, company, res['question'])
     is_ok = (rec_type == "success")
-    rec_icon = "✓" if is_ok else "💡"
-    rec_title = "החברה נוכחת במודעות ה-AI" if is_ok else "זוהה פער – המלצת פעולה"
-    rec_cls = "qx-rec qx-rec-ok" if is_ok else "qx-rec"
     
-    rec_html = f'''
-    <div class="{rec_cls}">
+    # כאן אנחנו סוגרים את ה-qx-card שנפתח בתחילת הלולאה
+    st.markdown(f'''
+    <div class="{"qx-rec qx-rec-ok" if is_ok else "qx-rec"}">
         <div class="qx-rec-head">
-            <div class="qx-rec-head-icon">{rec_icon}</div>
-            <div>{rec_title}</div>
+            <div class="qx-rec-head-icon">{"✓" if is_ok else "💡"}</div>
+            <div>{"החברה נוכחת במודעות ה-AI" if is_ok else "זוהה פער – המלצת פעולה"}</div>
         </div>
         <div class="qx-rec-body">{rec_text}</div>
     </div>
-    </div>
-    ''' # הסגירה האחרונה היא ל-qx-card
-    st.markdown(rec_html, unsafe_allow_html=True)
-    st.markdown('<div style="height:22px"></div>', unsafe_allow_html=True)
+    </div> <div style="height:22px"></div>
+    ''', unsafe_allow_html=True)

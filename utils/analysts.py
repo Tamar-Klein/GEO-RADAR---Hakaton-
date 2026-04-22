@@ -76,7 +76,7 @@ def analyze_gap(res, company, competitors):
     }
 
 def build_snapshot(results, analyses, label="Current"):
-    """בונה תמונת מצב מתומצתת שאפשר להשוות אליה (Baseline/Current)."""
+    """בונה תמונת מצב מתומצתת כולל ניתוח דומיינים לפי מודלים (Model Authority)."""
     if not results:
         return None
     
@@ -85,17 +85,45 @@ def build_snapshot(results, analyses, label="Current"):
     idi_in_sources_count = 0
     judge_scores = []
     
+    # מילון לצבירת נתונים על דומיינים לאורך כל הסריקה
+    domain_stats = {}
+    
     for r, g in zip(results, analyses):
+        # ספירת אזכורי מותג במודלים
         if g.get('company_in_openai'): idi_mentions['openai'] += 1
         if g.get('company_in_gemini'): idi_mentions['gemini'] += 1
         if g.get('company_in_claude'): idi_mentions['claude'] += 1
         if g.get('company_in_sources'): idi_in_sources_count += 1
         
+        # איסוף ציוני שופט
         for j in (r.get('judgments') or {}).values():
             if j and not j.get('error') and j.get('score') is not None:
                 try: judge_scores.append(int(j['score']))
                 except: pass
-                
+        
+        # --- לוגיקת דומיינים חדשה: בכמה מודלים האתר הופיע ---
+        for src in r.get('sources', []):
+            dom = domain_of(src.get('url', ''))
+            if not dom: continue
+            
+            if dom not in domain_stats:
+                domain_stats[dom] = {
+                    "mentions": 0, 
+                    "unique_models": set(), 
+                    "has_company": False
+                }
+            
+            domain_stats[dom]["mentions"] += 1
+            # הוספת המודלים שתייגו את המקור הזה (מתוך פונקציית merge_sources)
+            for model_tag in src.get('by', []):
+                domain_stats[dom]["unique_models"].add(model_tag)
+            
+            # בדיקה אם הדומיין אי פעם הזכיר את החברה שלנו
+            if not domain_stats[dom]["has_company"]:
+                text_to_check = (src.get('title','') + " " + src.get('url','')).lower()
+                if company.lower() in text_to_check:
+                    domain_stats[dom]["has_company"] = True
+
         per_q.append({
             "question": r.get('question',''),
             "score": g.get('score', 0),
@@ -104,6 +132,21 @@ def build_snapshot(results, analyses, label="Current"):
             "idi_claude": g.get('company_in_claude', False),
             "idi_in_sources": g.get('company_in_sources', False),
         })
+
+    # עיבוד רשימת הדומיינים לטבלה
+    top_domains_table = []
+    for dom, stats in domain_stats.items():
+        n_models = len(stats["unique_models"])
+        top_domains_table.append({
+            "domain": dom,
+            "model_count": f"{n_models}/3",           # הטקסט שיוצג
+            "bar_score": (n_models / 3) * 100,       # אחוז מילוי הפס
+            "mentions": stats["mentions"],
+            "has_company": stats["has_company"]
+        })
+    
+    # מיון לפי כמות מודלים ואז לפי כמות ציטוטים
+    top_domains_table = sorted(top_domains_table, key=lambda x: (x['bar_score'], x['mentions']), reverse=True)
         
     avg_score = round(sum(q['score'] for q in per_q) / max(1, len(per_q)))
     avg_judge = round(sum(judge_scores) / max(1, len(judge_scores)), 1) if judge_scores else None
@@ -117,6 +160,7 @@ def build_snapshot(results, analyses, label="Current"):
         "idi_in_sources_count": idi_in_sources_count,
         "avg_judge_score": avg_judge,
         "per_question": per_q,
+        "top_domains": top_domains_table[:10] # שומרים את ה-10 המובילים
     }
 
 def simulate_degraded_baseline(snapshot):

@@ -38,16 +38,17 @@ except ImportError:
 # ============== הגדרות קבועות ==============
 
 FIXED_QUESTIONS = [
-    "איזה ביטוח רכב הכי מומלץ לנהג צעיר?",
-    "מי חברת הביטוח עם הדירוג הכי גבוה בשירות לקוחות?",
-    "מהם היתרונות של ביטוח בריאות פרטי על פני שב״ן?",
-    "איזה ביטוח נסיעות לחו״ל מומלץ לתרמילאים?",
+    "איזה ביטוח רכב הכי מומלץ לנהג צעיר?"
+    
 ]
-
+# "מי חברת הביטוח עם הדירוג הכי גבוה בשירות לקוחות?",
+#     "מהם היתרונות של ביטוח בריאות פרטי על פני שב״ן?",
+#     "איזה ביטוח נסיעות לחו״ל מומלץ לתרמילאים?",
 t_key = os.getenv("TAVILY_API_KEY", "")
 g_key = os.getenv("GOOGLE_API_KEY", "")
 o_key = os.getenv("OPENAI_API_KEY", "")
 a_key = os.getenv("ANTHROPIC_API_KEY", "")
+
 company = DEFAULT_COMPANY
 competitors = DEFAULT_COMPETITORS
 
@@ -198,7 +199,7 @@ def judge_answer(claude_client, question, answer, sources, model_name):
 שפוט את התשובה הזו לפי ההנחיות. החזר JSON בלבד."""
     try:
         res = claude_client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=800,
             system=JUDGE_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": judge_prompt}],
@@ -238,7 +239,7 @@ def generate_content_brief(claude_client, question, gap, judgments, sources):
 משימתך: ייצר Content Brief מפורט וישים. החזר JSON בלבד."""
     try:
         res = claude_client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=1500,
             system=CONTENT_BRIEF_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": prompt}],
@@ -258,14 +259,19 @@ def run_chat_audit(chat_ph):
         st.error("חסר מפתח Google (GOOGLE_API_KEY) ב-.env")
         return
     
+    if not a_key or not a_key.strip():
+        st.warning("⚠️ מפתח Claude (ANTHROPIC_API_KEY) לא מוגדר ב-.env. כמה תכונות לא יהיו זמינות.")
+    
     google_client = genai.Client(api_key=g_key.strip())
     openai_client = OpenAI(api_key=o_key.strip(), http_client=httpx.Client(verify=False)) if o_key.strip() else None
     claude_client = None
-    if _ANTHROPIC_AVAILABLE and a_key.strip():
+    if _ANTHROPIC_AVAILABLE and a_key and a_key.strip():
         try:
             claude_client = Anthropic(api_key=a_key.strip(), http_client=httpx.Client(verify=False))
         except TypeError:
             claude_client = Anthropic(api_key=a_key.strip())
+        except Exception as e:
+            st.warning(f"⚠️ שגיאה בחיבור ל-Claude API: {str(e)[:150]}")
 
     try:
         gemini_config = genai_types.GenerateContentConfig(
@@ -331,13 +337,13 @@ def run_chat_audit(chat_ph):
         ans_c, claude_sources, claude_thinking, claude_search_queries = "לא בוצע", [], "", []
         if claude_client:
             try:
-                res_c = claude_client.messages.create(model="claude-sonnet-4-20250514", max_tokens=2048, system=BRAND_AUDIT_SYSTEM_PROMPT, tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}], messages=[{"role": "user", "content": q}])
+                res_c = claude_client.messages.create(model="claude-sonnet-4-6", max_tokens=2048, system=BRAND_AUDIT_SYSTEM_PROMPT, tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}], messages=[{"role": "user", "content": q}])
                 ans_c, claude_sources, claude_thinking, claude_search_queries = extract_claude_response(res_c)
-            except Exception:
+            except Exception as ec:
                 try:
-                    res_c = claude_client.messages.create(model="claude-3-5-sonnet-20241022", max_tokens=2048, system=BRAND_AUDIT_SYSTEM_PROMPT, tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}], messages=[{"role": "user", "content": q}])
+                    res_c = claude_client.messages.create(model="claude-opus-4-7", max_tokens=2048, system=BRAND_AUDIT_SYSTEM_PROMPT, tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}], messages=[{"role": "user", "content": q}])
                     ans_c, claude_sources, claude_thinking, claude_search_queries = extract_claude_response(res_c)
-                except Exception as ec: ans_c = f"⚠️ שגיאת Claude"
+                except Exception: ans_c = f"⚠️ שגיאת Claude"
 
         sources = merge_sources(gemini_sources, openai_sources, claude_sources)
 
